@@ -94,76 +94,213 @@
   <!-- LATEST EPISODES -->
   <section class="section" id="latest">
     <div class="container">
-      <div class="section-header fade-in">
-        <p class="label">Latest episodes</p>
-        <div class="divider"></div>
-        <h2>Recent Conversations</h2>
-        <p>Conversations with the creatives, thinkers, and changemakers shaping a new Paris.</p>
+      <div class="recent-ep-header">
+        <div>
+          <p class="label">Latest episodes</p>
+          <div class="divider"></div>
+          <h2>Recent Conversations</h2>
+        </div>
+        <a href="episodes.html" class="btn btn-secondary">All Episodes &rarr;</a>
       </div>
-
-      <div class="episodes-grid">
-
-        <!-- PLACEHOLDER EPISODE 1 — replace with real episode data -->
-        <article class="episode-card fade-in">
-          <p class="episode-num">Episode 85</p>
-          <h3>Rethinking the Brasserie with Chef Adeline Grattard</h3>
-          <div class="episode-meta">
-            <span>March 2025</span>
-            <span>52 min</span>
-          </div>
-          <p class="episode-desc">Chef Adeline Grattard discusses her philosophy of blending French and Chinese culinary traditions, and how her restaurant Yam'Tcha has become a benchmark of modern Parisian dining.</p>
-          <div class="episode-footer">
-            <span class="episode-guest"><strong>Adeline Grattard</strong></span>
-            <a href="episodes.html" class="btn btn-ghost">
-              Listen
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
-            </a>
-          </div>
-        </article>
-
-        <!-- PLACEHOLDER EPISODE 2 -->
-        <article class="episode-card fade-in">
-          <p class="episode-num">Episode 84</p>
-          <h3>Paris Through a Lens: The New Wave of Street Photography</h3>
-          <div class="episode-meta">
-            <span>February 2025</span>
-            <span>44 min</span>
-          </div>
-          <p class="episode-desc">Photographer Julien Liénard explores how social media is transforming street photography in Paris — and whether the city's visual identity is evolving or being flattened by viral aesthetics.</p>
-          <div class="episode-footer">
-            <span class="episode-guest"><strong>Julien Liénard</strong></span>
-            <a href="episodes.html" class="btn btn-ghost">
-              Listen
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
-            </a>
-          </div>
-        </article>
-
-        <!-- PLACEHOLDER EPISODE 3 -->
-        <article class="episode-card fade-in">
-          <p class="episode-num">Episode 83</p>
-          <h3>The Future of the Marché: Preserving Food Culture in a Changing City</h3>
-          <div class="episode-meta">
-            <span>January 2025</span>
-            <span>60 min</span>
-          </div>
-          <p class="episode-desc">Market vendors, urban planners, and food advocates discuss what's at stake as traditional marchés face pressure from rising rents, supermarkets, and shifting consumer habits.</p>
-          <div class="episode-footer">
-            <span class="episode-guest"><strong>Panel Discussion</strong></span>
-            <a href="episodes.html" class="btn btn-ghost">
-              Listen
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
-            </a>
-          </div>
-        </article>
-
-      </div>
-
-      <div style="text-align:center; margin-top:48px;">
-        <a href="episodes.html" class="btn btn-secondary">Browse All Episodes &rarr;</a>
+      <div class="recent-ep-grid" id="recent-ep-grid">
+        <p class="recent-ep-loading">Loading latest episodes…</p>
       </div>
     </div>
   </section>
+
+  <!-- AUDIO PLAYER BAR -->
+  <div class="ap-bar" id="ap-bar">
+    <img class="ap-art" id="ap-art" src="" alt="">
+    <div class="ap-info">
+      <div class="ap-title" id="ap-title"></div>
+      <div class="ap-progress" id="ap-progress">
+        <div class="ap-fill" id="ap-fill"></div>
+      </div>
+      <div class="ap-time" id="ap-time">0:00</div>
+    </div>
+    <button class="ap-toggle" id="ap-toggle" aria-label="Play / Pause">
+      <svg class="ap-icon-play" width="22" height="22" viewBox="0 0 22 22" fill="currentColor"><path d="M5 3l14 8-14 8V3z"/></svg>
+      <svg class="ap-icon-pause" width="22" height="22" viewBox="0 0 22 22" fill="currentColor"><path d="M6 3h3v16H6V3zm7 0h3v16h-3V3z"/></svg>
+    </button>
+  </div>
+  <audio id="ap-audio" preload="none"></audio>
+
+  <script>
+  (function() {
+    'use strict';
+    var RSS_URL   = 'https://anchor.fm/s/1d906628/podcast/rss';
+    var PROXY_URL = 'https://corsproxy.io/?' + encodeURIComponent(RSS_URL);
+    var gridEl    = document.getElementById('recent-ep-grid');
+    var audio     = document.getElementById('ap-audio');
+    var bar       = document.getElementById('ap-bar');
+    var apArt     = document.getElementById('ap-art');
+    var apTitle   = document.getElementById('ap-title');
+    var apFill    = document.getElementById('ap-fill');
+    var apTime    = document.getElementById('ap-time');
+    var apToggle  = document.getElementById('ap-toggle');
+    var apProgress = document.getElementById('ap-progress');
+    var currentBtn = null;
+
+    function fmt(s) {
+      s = Math.floor(s || 0);
+      var m = Math.floor(s / 60), sec = s % 60;
+      return m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+
+    function getTag(item, name) {
+      var el = item.querySelector(name) || item.querySelector(name.replace(':', '\\:'));
+      if (!el) {
+        var ch = item.children;
+        for (var i = 0; i < ch.length; i++) {
+          if (ch[i].tagName === name || ch[i].localName === name.split(':')[1]) { el = ch[i]; break; }
+        }
+      }
+      return el ? el.textContent.trim() : '';
+    }
+
+    function getItemImage(item, channelImg) {
+      var el = item.querySelector('itunes\\:image') || item.querySelector('image');
+      if (!el) {
+        var ch = item.children;
+        for (var i = 0; i < ch.length; i++) {
+          if (ch[i].localName === 'image') { el = ch[i]; break; }
+        }
+      }
+      if (el) return el.getAttribute('href') || el.getAttribute('url') || channelImg;
+      return channelImg;
+    }
+
+    function playEpisode(btn, mp3, title, imgSrc) {
+      if (currentBtn && currentBtn !== btn) {
+        currentBtn.classList.remove('playing');
+        currentBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M3 2l13 7-13 7V2z"/></svg>';
+      }
+      if (audio.src === mp3 && !audio.paused) {
+        audio.pause();
+        btn.classList.remove('playing');
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M3 2l13 7-13 7V2z"/></svg>';
+        bar.classList.remove('ap-visible');
+        apToggle.querySelector('.ap-icon-pause').style.display = 'none';
+        apToggle.querySelector('.ap-icon-play').style.display  = '';
+        return;
+      }
+      if (audio.src !== mp3) {
+        audio.src = mp3;
+        audio.load();
+      }
+      audio.play();
+      btn.classList.add('playing');
+      btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M5 3h3v12H5V3zm5 0h3v12h-3V3z"/></svg>';
+      currentBtn = btn;
+      apArt.src   = imgSrc;
+      apTitle.textContent = title;
+      bar.classList.add('ap-visible');
+      apToggle.querySelector('.ap-icon-pause').style.display = '';
+      apToggle.querySelector('.ap-icon-play').style.display  = 'none';
+    }
+
+    apToggle.addEventListener('click', function() {
+      if (audio.paused) {
+        audio.play();
+        apToggle.querySelector('.ap-icon-pause').style.display = '';
+        apToggle.querySelector('.ap-icon-play').style.display  = 'none';
+        if (currentBtn) {
+          currentBtn.classList.add('playing');
+          currentBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M5 3h3v12H5V3zm5 0h3v12h-3V3z"/></svg>';
+        }
+      } else {
+        audio.pause();
+        apToggle.querySelector('.ap-icon-pause').style.display = 'none';
+        apToggle.querySelector('.ap-icon-play').style.display  = '';
+        if (currentBtn) {
+          currentBtn.classList.remove('playing');
+          currentBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M3 2l13 7-13 7V2z"/></svg>';
+        }
+      }
+    });
+
+    audio.addEventListener('timeupdate', function() {
+      if (!audio.duration) return;
+      var pct = (audio.currentTime / audio.duration) * 100;
+      apFill.style.width = pct + '%';
+      apTime.textContent = fmt(audio.currentTime) + ' / ' + fmt(audio.duration);
+    });
+
+    apProgress.addEventListener('click', function(e) {
+      if (!audio.duration) return;
+      var r = apProgress.getBoundingClientRect();
+      audio.currentTime = ((e.clientX - r.left) / r.width) * audio.duration;
+    });
+
+    audio.addEventListener('ended', function() {
+      apToggle.querySelector('.ap-icon-pause').style.display = 'none';
+      apToggle.querySelector('.ap-icon-play').style.display  = '';
+      if (currentBtn) {
+        currentBtn.classList.remove('playing');
+        currentBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M3 2l13 7-13 7V2z"/></svg>';
+      }
+    });
+
+    function renderCards(items, channelImg) {
+      var recent = items.slice(0, 3);
+      gridEl.innerHTML = recent.map(function(item) {
+        var title   = getTag(item, 'title').replace(/^episode\s+\d+[:\s\-\u2013\u2014]+/i, '').trim();
+        var rawDate = getTag(item, 'pubDate');
+        var date    = rawDate ? new Date(rawDate) : null;
+        var dateStr = (date && !isNaN(date)) ? date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
+        var descRaw = getTag(item, 'description');
+        var desc    = descRaw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 160);
+        if (desc.length === 160) desc += '…';
+        var enc     = item.querySelector('enclosure');
+        var mp3     = enc ? enc.getAttribute('url') : '';
+        var img     = getItemImage(item, channelImg);
+        var safeTitle = title.replace(/"/g, '&quot;');
+        var safeMp3   = mp3.replace(/"/g, '&quot;');
+        var safeImg   = img.replace(/"/g, '&quot;');
+
+        return '<article class="recent-ep-card">'
+          + '<div class="recent-ep-img-wrap">'
+          + (img ? '<img class="recent-ep-img" src="' + safeImg + '" alt="' + safeTitle + '" loading="lazy">' : '<div class="recent-ep-img-ph"></div>')
+          + (mp3 ? '<button class="recent-ep-play" data-mp3="' + safeMp3 + '" data-title="' + safeTitle + '" data-img="' + safeImg + '" aria-label="Play episode">'
+              + '<svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M3 2l13 7-13 7V2z"/></svg>'
+              + '</button>' : '')
+          + '</div>'
+          + '<div class="recent-ep-body">'
+          + (dateStr ? '<p class="recent-ep-date">' + dateStr + '</p>' : '')
+          + '<h3 class="recent-ep-title">' + title + '</h3>'
+          + (desc ? '<p class="recent-ep-desc">' + desc + '</p>' : '')
+          + '</div>'
+          + '</article>';
+      }).join('');
+
+      gridEl.querySelectorAll('.recent-ep-play').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          playEpisode(btn, btn.dataset.mp3, btn.dataset.title, btn.dataset.img);
+        });
+      });
+    }
+
+    function loadXML(text) {
+      var xml  = new DOMParser().parseFromString(text, 'application/xml');
+      var chanImgEl = xml.querySelector('channel > image > url') || xml.querySelector('channel > itunes\\:image') || xml.querySelector('channel > image');
+      var channelImg = chanImgEl ? (chanImgEl.getAttribute('href') || chanImgEl.textContent.trim()) : '';
+      var items = Array.from(xml.querySelectorAll('channel > item'));
+      renderCards(items, channelImg);
+    }
+
+    fetch(RSS_URL)
+      .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
+      .then(loadXML)
+      .catch(function() {
+        return fetch(PROXY_URL)
+          .then(function(r) { return r.text(); })
+          .then(loadXML)
+          .catch(function() {
+            gridEl.innerHTML = '<p class="recent-ep-loading">Couldn\'t load episodes. <a href="episodes.html">Browse all →</a></p>';
+          });
+      });
+  })();
+  </script>
 
   <!-- LISTEN / PLATFORMS -->
   <section class="section player-section" id="platforms">

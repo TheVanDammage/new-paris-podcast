@@ -97,26 +97,26 @@
   <section class="section">
     <div class="container">
 
-      <div class="episodes-toolbar">
-        <div class="search-bar" style="margin-bottom:0">
+      <div class="ep-toolbar">
+        <div class="ep-tag-filters" id="ep-tag-filters">
+          <!-- tag buttons injected by JS -->
+        </div>
+        <div class="ep-search-wrap">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input
             type="search"
             id="episode-search"
-            class="search-input"
-            placeholder="Search episodes, guests, topics&hellip;"
+            class="ep-search-input"
+            placeholder="Search episodes&hellip;"
             autocomplete="off"
           >
-          <select id="episode-sort" class="filter-select">
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-          </select>
         </div>
-        <p class="episodes-count" id="episode-count" aria-live="polite"></p>
       </div>
 
-      <p class="no-results" id="no-results">No episodes match your search. Try a different keyword.</p>
+      <p class="episodes-count" id="episode-count" aria-live="polite" style="margin-bottom:24px; font-size:13px; color:var(--gray);"></p>
+      <p class="no-results" id="no-results">No episodes match your search.</p>
 
-      <div class="episodes-list" id="episodes-list">
+      <div class="ep-list" id="episodes-list">
         <div class="episodes-loading">Loading episodes&hellip;</div>
       </div>
 
@@ -178,15 +178,18 @@
   <script>
   (function () {
     'use strict';
-    var RSS_URL  = 'https://anchor.fm/s/1d906628/podcast/rss';
-    var listEl   = document.getElementById('episodes-list');
-    var searchEl = document.getElementById('episode-search');
-    var sortEl   = document.getElementById('episode-sort');
-    var noResEl  = document.getElementById('no-results');
-    var countEl  = document.getElementById('episode-count');
+    var RSS_URL     = 'https://anchor.fm/s/1d906628/podcast/rss';
+    var PROXY_URL   = 'https://corsproxy.io/?' + encodeURIComponent(RSS_URL);
+    var listEl      = document.getElementById('episodes-list');
+    var searchEl    = document.getElementById('episode-search');
+    var filtersEl   = document.getElementById('ep-tag-filters');
+    var noResEl     = document.getElementById('no-results');
+    var countEl     = document.getElementById('episode-count');
     var allEpisodes = [];
+    var activeTag   = 'All';
+    var channelImg  = '';
 
-    /* ---- Infer topic tags from title + description text ---- */
+    /* ---- Infer topic tags ---- */
     function getTags(text) {
       text = text.toLowerCase();
       var tags = [];
@@ -200,174 +203,159 @@
       return tags.slice(0, 2);
     }
 
-    /* ---- Get text content of a (possibly namespaced) tag ---- */
+    /* ---- Get namespaced tag text ---- */
     function getTag(item, name) {
-      var el = item.querySelector(name)
-             || item.querySelector(name.replace(':', '\\:'));
-      if (!el) {
-        // walk children for namespace-prefixed tags
-        var children = item.children;
-        for (var i = 0; i < children.length; i++) {
-          if (children[i].tagName === name || children[i].localName === name.split(':')[1]) {
-            el = children[i];
-            break;
-          }
+      var local = name.split(':').pop();
+      var ch = item.children;
+      for (var i = 0; i < ch.length; i++) {
+        if (ch[i].tagName === name || ch[i].localName === local) return ch[i].textContent.trim();
+      }
+      return '';
+    }
+
+    /* ---- Get episode image ---- */
+    function getItemImage(item) {
+      var ch = item.children;
+      for (var i = 0; i < ch.length; i++) {
+        if (ch[i].localName === 'image') {
+          return ch[i].getAttribute('href') || ch[i].getAttribute('url') || channelImg;
         }
       }
-      return el ? el.textContent.trim() : '';
+      return channelImg;
     }
 
-    /* ---- Parse one RSS <item> into an episode object ---- */
+    /* ---- Parse RSS item ---- */
     function parseItem(item) {
-      var title   = getTag(item, 'title');
-      var rawDate = getTag(item, 'pubDate');
-      var durStr  = getTag(item, 'itunes:duration') || getTag(item, 'duration');
+      var title    = getTag(item, 'title');
+      var rawDate  = getTag(item, 'pubDate');
+      var durStr   = getTag(item, 'itunes:duration') || getTag(item, 'duration');
       var epNumStr = getTag(item, 'itunes:episode') || getTag(item, 'episode');
-
-      // Enclosure (MP3)
-      var enc    = item.querySelector('enclosure');
-      var mp3Url = enc ? enc.getAttribute('url') : '';
-
-      // Episode page link
-      var linkEl = item.querySelector('link');
-      var link   = '';
-      if (linkEl) {
-        link = linkEl.textContent.trim();
-        if (!link && linkEl.nextSibling) link = linkEl.nextSibling.textContent.trim();
-      }
+      var enc      = item.querySelector('enclosure');
+      var mp3Url   = enc ? enc.getAttribute('url') : '';
+      var linkEl   = item.querySelector('link');
+      var link     = linkEl ? linkEl.textContent.trim() : '';
+      if (!link && linkEl && linkEl.nextSibling) link = linkEl.nextSibling.textContent.trim();
       var listenUrl = (link && link.indexOf('rss') === -1) ? link : (mp3Url || '');
-
-      // Description (strip HTML)
-      var descRaw = getTag(item, 'description');
-      var desc    = descRaw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').substring(0, 400);
-
-      // Episode number — prefer itunes:episode, else parse title
-      var epNum = parseInt(epNumStr, 10) || 0;
-      if (!epNum) {
-        var nm = title.match(/episode\s+(\d+)/i);
-        if (nm) epNum = parseInt(nm[1], 10);
-      }
-
-      // Date
-      var date   = rawDate ? new Date(rawDate) : null;
-      var dateMs = (date && !isNaN(date)) ? date.getTime() : 0;
-      var dateStr = (date && !isNaN(date))
-        ? date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-        : '';
-
-      // Normalise duration "00:43:50" → "43:50"
-      if (durStr && durStr.indexOf(':') !== -1) {
-        durStr = durStr.replace(/^00:/, '');
-      }
-
-      // Guest: "... with First Last" at end of title
-      var guestM = title.match(/\bwith\s+([A-ZÁÀÂÄÉÈÊËÎÏÔÙÛÜÇ][^\(\[\|,]+?)(?:\s*$)/i);
-      var guest  = guestM ? guestM[1].trim().replace(/\s+and\s+/, ' & ') : '';
-
-      // Clean title of "Episode N: " prefix
+      var descRaw  = getTag(item, 'description');
+      var desc     = descRaw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 220);
+      var epNum    = parseInt(epNumStr, 10) || 0;
+      if (!epNum) { var nm = title.match(/episode\s+(\d+)/i); if (nm) epNum = parseInt(nm[1], 10); }
+      var date    = rawDate ? new Date(rawDate) : null;
+      var dateMs  = (date && !isNaN(date)) ? date.getTime() : 0;
+      var dateStr = (date && !isNaN(date)) ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+      if (durStr && durStr.indexOf(':') !== -1) durStr = durStr.replace(/^00:/, '');
+      var guestM  = title.match(/\bwith\s+([A-ZÁÀÂÄÉÈÊËÎÏÔÙÛÜÇ][^\(\[\|,]+?)(?:\s*$)/i);
+      var guest   = guestM ? guestM[1].trim().replace(/\s+and\s+/, ' & ') : '';
       var cleanTitle = title.replace(/^episode\s+\d+[:\s\-\u2013\u2014]+/i, '').trim();
-
-      // Tags
-      var tags = getTags(cleanTitle + ' ' + desc);
-
-      // Search index
+      var tags    = getTags(cleanTitle + ' ' + desc);
+      var imgSrc  = getItemImage(item);
       var searchIdx = [cleanTitle, title, guest, tags.join(' '), desc].join(' ').toLowerCase();
-
-      return {
-        title: cleanTitle,
-        rawTitle: title,
-        epNum: epNum,
-        guest: guest,
-        dateStr: dateStr,
-        dateMs: dateMs,
-        durStr: durStr,
-        listenUrl: listenUrl,
-        tags: tags,
-        searchIdx: searchIdx
-      };
+      return { title: cleanTitle, epNum: epNum, guest: guest, dateStr: dateStr, dateMs: dateMs,
+               durStr: durStr, listenUrl: listenUrl, tags: tags, imgSrc: imgSrc, desc: desc, searchIdx: searchIdx };
     }
 
-    /* ---- Render a single episode row ---- */
-    function renderRow(ep) {
-      var epLabel  = ep.epNum > 0 ? ep.epNum : '&mdash;';
-      var tagsHtml = ep.tags.length
-        ? '<div class="episode-tags">' + ep.tags.map(function(t){ return '<span class="ep-tag">' + t + '</span>'; }).join('') + '</div>'
-        : '';
-      var parts = [];
-      if (ep.dateStr) parts.push('<span class="meta-item">' + ep.dateStr + '</span>');
-      if (ep.durStr)  parts.push('<span class="meta-item">' + ep.durStr + '</span>');
-      if (ep.guest)   parts.push('<strong class="meta-guest">' + ep.guest + '</strong>');
-      var metaHtml = parts.join('<span class="meta-dot">&middot;</span>');
-
+    /* ---- Render one episode row ---- */
+    function renderRowFull(ep) {
+      var firstTag = ep.tags[0] || '';
+      var metaParts = [];
+      if (ep.epNum > 0) metaParts.push('Episode ' + ep.epNum);
+      if (ep.dateStr)   metaParts.push(ep.dateStr);
+      if (ep.durStr)    metaParts.push(ep.durStr);
+      var thumb = ep.imgSrc
+        ? '<img src="' + ep.imgSrc.replace(/"/g,'&quot;') + '" alt="' + ep.title.replace(/"/g,'&quot;') + '" loading="lazy">'
+        : '<div class="ep-list-thumb-ph"></div>';
       var listenBtn = ep.listenUrl
-        ? '<a href="' + ep.listenUrl.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="btn btn-secondary ep-listen-btn">'
-          + '<svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><path d="M1.5 1l8 4.5-8 4.5V1z"/></svg>'
-          + 'Listen</a>'
+        ? '<a href="' + ep.listenUrl.replace(/"/g,'&quot;') + '" target="_blank" rel="noopener" class="btn btn-secondary ep-listen-btn">'
+          + '<svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><path d="M1.5 1l8 4.5-8 4.5V1z"/></svg>Listen</a>'
         : '';
-
-      return '<div class="episode-row" data-num="' + ep.epNum + '" data-date="' + ep.dateMs + '" data-search="' + ep.searchIdx.replace(/"/g, '&quot;') + '">'
-        + '<div class="episode-row-num">' + epLabel + '</div>'
-        + '<div class="episode-row-body">'
-          + '<div class="episode-row-title">' + ep.title + '</div>'
-          + '<div class="episode-row-meta">' + metaHtml + '</div>'
-          + tagsHtml
+      var metaHtml = metaParts.join('<span class="ep-dot"> &middot; </span>');
+      return '<div class="ep-list-item">'
+        + '<div class="ep-list-thumb">' + thumb + '</div>'
+        + '<div class="ep-list-body">'
+          + '<div class="ep-list-meta">'
+            + (firstTag ? '<span class="ep-list-tag">' + firstTag + '</span>' : '')
+            + '<span class="ep-list-metainfo">' + metaHtml + '</span>'
+          + '</div>'
+          + '<h3 class="ep-list-title">' + ep.title + '</h3>'
+          + (ep.desc ? '<p class="ep-list-desc">' + ep.desc + '</p>' : '')
+          + '<div class="ep-list-footer">'
+            + (ep.guest ? '<span class="ep-list-guest">with <strong>' + ep.guest + '</strong></span>' : '')
+            + listenBtn
+          + '</div>'
         + '</div>'
-        + '<div class="episode-row-action">' + listenBtn + '</div>'
         + '</div>';
     }
 
-    /* ---- Filter, sort, and re-render ---- */
-    function renderAll() {
-      var q   = searchEl.value.toLowerCase().trim();
-      var asc = sortEl.value === 'oldest';
-
-      var filtered = allEpisodes.filter(function(ep) {
-        return !q || ep.searchIdx.indexOf(q) !== -1;
-      }).slice().sort(function(a, b) {
-        return asc ? a.dateMs - b.dateMs : b.dateMs - a.dateMs;
+    /* ---- Build tag filter buttons ---- */
+    function buildTagFilters() {
+      var seen = {};
+      allEpisodes.forEach(function(ep) { ep.tags.forEach(function(t) { seen[t] = true; }); });
+      var tags = Object.keys(seen).sort();
+      var html = '<button class="ep-filter-btn active" data-tag="All">All</button>';
+      tags.forEach(function(t) { html += '<button class="ep-filter-btn" data-tag="' + t + '">' + t + '</button>'; });
+      filtersEl.innerHTML = html;
+      filtersEl.querySelectorAll('.ep-filter-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          activeTag = btn.dataset.tag;
+          filtersEl.querySelectorAll('.ep-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          renderAll();
+        });
       });
+    }
+
+    /* ---- Filter and render ---- */
+    function renderAll() {
+      var q = searchEl.value.toLowerCase().trim();
+      var filtered = allEpisodes.filter(function(ep) {
+        var tagOk = activeTag === 'All' || ep.tags.indexOf(activeTag) !== -1;
+        var searchOk = !q || ep.searchIdx.indexOf(q) !== -1;
+        return tagOk && searchOk;
+      }).sort(function(a, b) { return b.dateMs - a.dateMs; });
 
       if (filtered.length === 0) {
         listEl.innerHTML = '';
         noResEl.style.display = 'block';
       } else {
         noResEl.style.display = 'none';
-        listEl.innerHTML = filtered.map(renderRow).join('');
+        listEl.innerHTML = filtered.map(renderRowFull).join('');
       }
       countEl.textContent = filtered.length + ' episode' + (filtered.length !== 1 ? 's' : '');
     }
 
-    /* ---- Fetch RSS (direct, then CORS proxy fallback) ---- */
-    var PROXY_URL = 'https://corsproxy.io/?' + encodeURIComponent(RSS_URL);
-
+    /* ---- Load RSS ---- */
     function loadXML(text) {
-      var xml   = new DOMParser().parseFromString(text, 'application/xml');
+      var xml = new DOMParser().parseFromString(text, 'application/xml');
+      var chan = xml.querySelector('channel');
+      channelImg = '';
+      if (chan) {
+        var chanCh = chan.children;
+        for (var ci = 0; ci < chanCh.length; ci++) {
+          if (chanCh[ci].localName === 'image') {
+            channelImg = chanCh[ci].getAttribute('href') || chanCh[ci].textContent.trim() || '';
+            break;
+          }
+        }
+      }
       var items = Array.from(xml.querySelectorAll('channel > item'));
       allEpisodes = items.map(parseItem).filter(function(ep) { return ep.dateMs > 0; });
+      buildTagFilters();
       renderAll();
     }
 
     function init() {
       fetch(RSS_URL)
-        .then(function(res) {
-          if (!res.ok) throw new Error('non-200');
-          return res.text();
-        })
+        .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
         .then(loadXML)
         .catch(function() {
-          // Direct blocked (file:// or CORS) — try proxy
-          return fetch(PROXY_URL)
-            .then(function(res) { return res.text(); })
-            .then(loadXML);
+          return fetch(PROXY_URL).then(function(r) { return r.text(); }).then(loadXML);
         })
         .catch(function() {
-          listEl.innerHTML = '<div class="episodes-loading">Couldn\'t load episodes. '
-            + '<a href="https://anchor.fm/the-new-paris-podcast" target="_blank" rel="noopener">Browse on Spotify &rarr;</a></div>';
+          listEl.innerHTML = '<div class="episodes-loading">Couldn\'t load episodes. <a href="https://open.spotify.com/show/2KHAu4PRRxsVcUf0qL84Ym" target="_blank">Browse on Spotify &rarr;</a></div>';
         });
     }
 
     searchEl.addEventListener('input', renderAll);
-    sortEl.addEventListener('change', renderAll);
     init();
   }());
   </script>

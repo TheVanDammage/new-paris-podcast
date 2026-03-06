@@ -320,7 +320,7 @@ p { color: var(--white-dim); }
 /* Cover art */
 .hero-art {
   position: relative;
-  width: clamp(220px, 26vw, 360px);
+  width: clamp(330px, 39vw, 540px);
   flex-shrink: 0;
 }
 .hero-art-glow {
@@ -728,7 +728,7 @@ p { color: var(--white-dim); }
    ============================================================ */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   background: var(--line);
   border-radius: var(--r);
@@ -890,7 +890,7 @@ p { color: var(--white-dim); }
   .hero-actions { justify-content: center; }
   .hero-platforms { justify-content: center; }
   .hero-platforms-logos { justify-content: center; }
-  .hero-art { width: 180px; margin: 0 auto; order: -1; }
+  .hero-art { width: 270px; margin: 0 auto; order: -1; }
   .episodes-grid { grid-template-columns: 1fr; }
   .host-inner { grid-template-columns: 1fr; text-align: center; }
   .host-photo { width: 200px; margin: 0 auto; }

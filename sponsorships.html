@@ -123,18 +123,14 @@
           </div>
         </div>
 
-        <!-- NETLIFY FORM — submissions go to your Netlify dashboard automatically -->
         <form
-          name="sponsorship"
           method="POST"
-          data-netlify="true"
-          netlify-honeypot="bot-field"
+          action="https://formspree.io/f/mattpjord@gmail.com"
           class="form"
-          action="/sponsorships.html"
         >
-          <input type="hidden" name="form-name" value="sponsorship">
-          <!-- Honeypot spam prevention -->
-          <p style="display:none"><label>Don't fill this out: <input name="bot-field"></label></p>
+          <!-- Spam prevention -->
+          <input type="text" name="_gotcha" style="display:none">
+          <input type="hidden" name="_subject" value="New sponsorship / media kit request — The New Paris Podcast">
 
           <div class="form-row">
             <div class="form-group">
@@ -154,7 +150,7 @@
 
           <div class="form-group">
             <label class="form-label" for="website">Company Website</label>
-            <input type="url" id="website" name="website" class="form-input" placeholder="">
+            <input type="text" id="website" name="website" class="form-input" placeholder="">
           </div>
 
           <div class="form-group">

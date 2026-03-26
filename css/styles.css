@@ -254,7 +254,6 @@ p { color: var(--white-dim); }
    HERO
    ============================================================ */
 .hero {
-  min-height: 100vh;
   display: flex;
   align-items: flex-start;
   padding-top: var(--nav-h);

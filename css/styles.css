@@ -2,6 +2,38 @@
    THE NEW PARIS PODCAST — Stylesheet
    ============================================================ */
 
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 700;
+  src: url('../fonts/cormorant-garamond-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: italic;
+  font-display: swap;
+  font-weight: 300 700;
+  src: url('../fonts/cormorant-garamond-latin-wght-italic.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 1000;
+  src: url('../fonts/dm-sans-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 1000;
+  src: url('../fonts/dm-sans-latin-wght-italic.woff2') format('woff2-variations');
+}
+
 /* ---- Variables ---- */
 :root {
   --bg:           #070d1c;
@@ -737,6 +769,104 @@ p { color: var(--white-dim); }
 }
 .footer-bottom p { font-size: 12px; color: var(--gray-dark); }
 .footer-socials { display: flex; gap: 10px; }
+.footer-legal {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.footer-legal a,
+.footer-legal button {
+  color: var(--gray);
+  font-size: 12px;
+  transition: color 0.2s;
+}
+.footer-legal a:hover,
+.footer-legal button:hover { color: var(--white); }
+
+/* ============================================================
+   PRIVACY / CONSENT
+   ============================================================ */
+.legal-content {
+  max-width: 820px;
+}
+.legal-content h2 {
+  font-size: clamp(28px, 4vw, 44px);
+  margin: 44px 0 16px;
+}
+.legal-content h3 {
+  font-size: clamp(21px, 2.4vw, 28px);
+  margin: 28px 0 10px;
+}
+.legal-content p,
+.legal-content li {
+  color: var(--white-dim);
+  line-height: 1.8;
+}
+.legal-content p { margin-bottom: 16px; }
+.legal-content ul {
+  list-style: disc;
+  padding-left: 22px;
+  margin: 0 0 22px;
+}
+.legal-content a {
+  color: var(--gold);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.cookie-banner {
+  position: fixed;
+  left: clamp(16px, 4vw, 32px);
+  right: clamp(16px, 4vw, 32px);
+  bottom: clamp(16px, 4vw, 32px);
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 22px;
+  background: rgba(12, 21, 40, 0.98);
+  border: 1px solid var(--gold-border);
+  border-radius: var(--r);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.45);
+}
+.cookie-banner.open { display: flex; }
+.cookie-banner p {
+  font-size: 14px;
+  margin: 0;
+  max-width: 640px;
+}
+.cookie-banner a {
+  color: var(--gold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cookie-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.cookie-btn {
+  min-height: 42px;
+  padding: 10px 18px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.cookie-btn.accept {
+  background: var(--gold);
+  color: var(--bg);
+}
+.cookie-btn.reject {
+  border: 1px solid var(--line);
+  color: var(--white);
+}
+.cookie-btn:hover { transform: translateY(-1px); }
 
 /* ============================================================
    PAGE HERO (inner pages)
@@ -1194,6 +1324,8 @@ p { color: var(--white-dim); }
   .divider { margin-left: auto; margin-right: auto; }
   .footer-inner { grid-template-columns: 1fr; gap: 32px; }
   .footer-bottom { flex-direction: column; gap: 16px; text-align: center; }
+  .footer-legal { justify-content: center; }
+  .cookie-banner { align-items: flex-start; flex-direction: column; }
   .form-row { grid-template-columns: 1fr; }
   .player-platforms { flex-direction: column; }
   .stats-grid { grid-template-columns: 1fr 1fr; }

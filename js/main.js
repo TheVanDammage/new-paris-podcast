@@ -2,6 +2,120 @@
    THE NEW PARIS PODCAST — main.js
    ============================================================ */
 
+// ---- GDPR / CNIL cookie consent for Google Analytics ----
+const GA_MEASUREMENT_ID = 'G-9X0PJY922H';
+const CONSENT_KEY = 'tnpp_cookie_consent';
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){window.dataLayer.push(arguments);}
+
+gtag('consent', 'default', {
+  ad_storage: 'denied',
+  ad_user_data: 'denied',
+  ad_personalization: 'denied',
+  analytics_storage: 'denied'
+});
+
+function loadGoogleAnalytics() {
+  if (document.querySelector(`script[src*="${GA_MEASUREMENT_ID}"]`)) return;
+
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+  document.head.appendChild(script);
+
+  gtag('js', new Date());
+  gtag('config', GA_MEASUREMENT_ID, { anonymize_ip: true });
+}
+
+function deleteAnalyticsCookies() {
+  const domainParts = location.hostname.split('.');
+  const domains = [
+    location.hostname,
+    domainParts.length > 1 ? `.${domainParts.slice(-2).join('.')}` : location.hostname
+  ];
+  const cookieNames = document.cookie
+    .split(';')
+    .map(cookie => cookie.trim().split('=')[0])
+    .filter(name => name === '_ga' || name.startsWith('_ga_') || name.startsWith('_gid') || name.startsWith('_gat'));
+
+  cookieNames.forEach(name => {
+    domains.forEach(domain => {
+      document.cookie = `${name}=; Max-Age=0; path=/; domain=${domain}`;
+    });
+    document.cookie = `${name}=; Max-Age=0; path=/`;
+  });
+}
+
+function applyCookieConsent(choice) {
+  const granted = choice === 'accepted';
+
+  gtag('consent', 'update', {
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+    analytics_storage: granted ? 'granted' : 'denied'
+  });
+
+  if (granted) loadGoogleAnalytics();
+  else deleteAnalyticsCookies();
+}
+
+function getSavedConsent() {
+  try {
+    return localStorage.getItem(CONSENT_KEY);
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveConsent(choice) {
+  try {
+    localStorage.setItem(CONSENT_KEY, choice);
+  } catch (error) {
+    // If storage is unavailable, keep consent for the current page only.
+  }
+}
+
+function buildCookieBanner() {
+  const banner = document.createElement('div');
+  banner.className = 'cookie-banner';
+  banner.setAttribute('role', 'dialog');
+  banner.setAttribute('aria-live', 'polite');
+  banner.setAttribute('aria-label', 'Cookie consent');
+  banner.innerHTML = `
+    <p>We use Google Analytics cookies only if you agree, to understand site traffic and improve the podcast website. You can accept, reject, or change your choice later. <a href="privacy.html">Privacy policy</a></p>
+    <div class="cookie-actions">
+      <button class="cookie-btn reject" type="button" data-cookie-choice="rejected">Reject</button>
+      <button class="cookie-btn accept" type="button" data-cookie-choice="accepted">Accept</button>
+    </div>
+  `;
+  document.body.appendChild(banner);
+
+  banner.querySelectorAll('[data-cookie-choice]').forEach(button => {
+    button.addEventListener('click', () => {
+      const choice = button.dataset.cookieChoice;
+      saveConsent(choice);
+      applyCookieConsent(choice);
+      banner.classList.remove('open');
+    });
+  });
+
+  return banner;
+}
+
+const savedConsent = getSavedConsent();
+if (savedConsent) applyCookieConsent(savedConsent);
+
+document.addEventListener('DOMContentLoaded', () => {
+  const banner = buildCookieBanner();
+  if (!savedConsent) banner.classList.add('open');
+
+  document.querySelectorAll('[data-cookie-settings]').forEach(button => {
+    button.addEventListener('click', () => banner.classList.add('open'));
+  });
+});
+
 // ---- Nav: scroll background ----
 const nav = document.getElementById('nav');
 if (nav) {
